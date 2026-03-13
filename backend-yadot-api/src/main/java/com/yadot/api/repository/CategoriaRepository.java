@@ -6,7 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CategoriaRepository extends JpaRepository<CategoriaModel, Long> {
-
-    // Sucesso! Apenas deixando a interface vazia e herdando do JpaRepository,
     // o Spring Boot já fabrica automaticamente os métodos de CRUD (salvar, buscar, deletar) para a Categoria!
 }
