@@ -16,12 +16,8 @@ public class HabitService {
         return habitRepository.findAll();
     }
     public HabitModel save(HabitModel newHabit) {
-        if (newHabit.getHabitName()){
-
-        }
-            //.... como dar pull sem deletar o local
-
         return habitRepository.save(newHabit);
     }
-    public void delete(Long id){HabitRepository.deleteById(id);}
+    public void deleteHabit(Long id){habitRepository.deleteById(id);}
+
 }

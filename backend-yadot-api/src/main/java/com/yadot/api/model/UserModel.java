@@ -26,6 +26,4 @@ public class UserModel {
 
     @Column (nullable = false)
     private String email;
-
-
 }
