@@ -2,7 +2,13 @@ package com.yadot.api.model;
 
 import com.yadot.api.enums.DiasSemanaModel;
 import jakarta.persistence.*;
-import lombok.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
@@ -17,15 +23,17 @@ public class HabitModel {
 
     private Long habitId;
 
-    @Column(length = 50, nullable = false)
+    @Size(min = 3, max = 50)
+    @NotBlank(message = "É obrigatório preencher o campo.")
     private String habitName;
 
     // muitos hábitos podem ter a mesma categoria
     @ManyToOne
-    @JoinColumn(name = "categoria_id") // precisamos juntar as duas tabelas (FK)
+    @JoinColumn(name = "categoria_id")
+    @NotNull// precisamos juntar as duas tabelas (FK)
     private CategoriaModel categoria;
 
-    @Column(nullable = false)
+    @NotNull
     private String habitIcon;
 
     private boolean saveGoogleCalendar;
