@@ -2,6 +2,7 @@ package com.yadot.api.controller;
 
 import com.yadot.api.model.HabitModel;
 import com.yadot.api.service.HabitService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +23,7 @@ public class HabitController {
     public List<HabitModel> getAll(){return habitoService.getAll();}
 
     @PostMapping
-    public HabitModel create(@RequestBody HabitModel habitModel) { return habitoService.save(habitModel);}
+    public HabitModel create(@RequestBody @Valid HabitModel habitModel) { return habitoService.save(habitModel);}
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {habitoService.deleteHabit(id);}
