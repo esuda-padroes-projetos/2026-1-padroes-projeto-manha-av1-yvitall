@@ -76,7 +76,7 @@ fun HomePag(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
                     color = Color.Black,
                     fontWeight = FontWeight.Bold
                 ),
-                modifier = Modifier.padding(top = 15.dp)
+                modifier = Modifier.padding(top = 7.dp)
             )
             Text(
                 text = "yadoT",
@@ -85,12 +85,12 @@ fun HomePag(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
                     color = Color.Black,
                     fontWeight = FontWeight.Bold
                 ),
-                modifier = Modifier.padding(top = 20.dp)
+                modifier = Modifier.padding(top = 7.dp)
             )
             Text(
                 text = "Tenha o controle de seus hábitos\nna palma de sua mão.",
                 style = TextStyle(
-                    fontSize = 14.sp,
+                    fontSize = 17.sp,
                     color = Color.Gray,
                     lineHeight = 17.sp
                 ),
@@ -110,7 +110,7 @@ fun HomePag(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
                         .fillMaxWidth(0.85f)
                         .height(60.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                 ) {
                     Text(
                         text = "Entrar",
@@ -133,7 +133,7 @@ fun HomePag(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
                         .fillMaxWidth(0.85f)
                         .height(60.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                 ) {
                     Text(
                         text = "Cadastrar",
