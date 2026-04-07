@@ -1,6 +1,7 @@
 package com.yadot.api.model;
 
-import com.yadot.api.enums.DiasSemanaModel;
+import com.yadot.api.enums.Categoria;
+import com.yadot.api.enums.DiasSemana;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -8,7 +9,6 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
@@ -23,24 +23,30 @@ public class HabitModel {
 
     private Long habitId;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    @NotNull
+    private UserModel usuario;
+
     @Size(min = 3, max = 50)
     @NotBlank(message = "É obrigatório preencher o campo.")
+    @ManyToOne
     private String habitName;
 
-    // muitos hábitos podem ter a mesma categoria
-    @ManyToOne
-    @JoinColumn(name = "categoria_id")
-    @NotNull// precisamos juntar as duas tabelas (FK)
-    private CategoriaModel categoria;
-
+    @Enumerated(EnumType.STRING)
     @NotNull
+    private Categoria categoria;
+
+    @NotBlank(message = "É obrigatório selecionar um ícone.")
     private String habitIcon;
 
-    private boolean saveGoogleCalendar;
-
-    @ElementCollection(targetClass = DiasSemanaModel.class)
-    @Enumerated(EnumType.STRING) // ao inves de armazenar os numeros(indices do enum) salvaremos a string contendo dia da semana
+    @ElementCollection(targetClass = DiasSemana.class)
     @CollectionTable(name = "habitos_dias", joinColumns = @JoinColumn(name = "habit_id"))
-    private List<DiasSemanaModel> diasDaSemana;
+    @Enumerated(EnumType.STRING) // ao inves de armazenar os numeros(indices do enum) salvaremos a string contendo dia da semana
+    private List<DiasSemana> diasDaSemana;
 
+
+    // Um Hábito tem um histórico de vários check-ins
+    @OneToMany(mappedBy = "habit", cascade = CascadeType.ALL)
+    private List<CheckinModel> historicoCheckins;
 }

@@ -1,7 +1,6 @@
 package com.yadot.api.service;
 
 import com.yadot.api.model.HabitModel;
-import com.yadot.api.repository.CategoriaRepository;
 import com.yadot.api.repository.HabitRepository;
 import org.springframework.stereotype.Service;
 
