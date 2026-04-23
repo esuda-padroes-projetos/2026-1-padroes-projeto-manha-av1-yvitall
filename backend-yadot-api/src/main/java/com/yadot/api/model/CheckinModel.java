@@ -2,13 +2,11 @@ package com.yadot.api.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
-@Data // Lombok
+@Getter @Setter
 @Entity // Transforma a classe em uma entidade no banco de dados (necessario em classesModel/Entities)
 @Table(name = "tb_checkin") //criacao de uma tabela com nome da tabela
 @NoArgsConstructor

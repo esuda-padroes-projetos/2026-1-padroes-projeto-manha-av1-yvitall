@@ -14,9 +14,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserRequest {
     @NotBlank
+    @Size(max = 100)
     private String nome;
 
     @NotBlank
+    @Size(max = 100)
     private String sobrenome;
 
     @NotBlank(message = "O campo não pode estar vazio.")
