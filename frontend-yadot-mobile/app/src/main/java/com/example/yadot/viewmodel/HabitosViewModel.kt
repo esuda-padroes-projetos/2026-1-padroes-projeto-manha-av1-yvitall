@@ -1,115 +1,213 @@
 package com.example.yadot.viewmodel
 
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.yadot.api.RetrofitInstance
+import com.example.yadot.model.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.time.LocalDate
-import com.example.yadot.model.Habito
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.graphics.vector.ImageVector
+import java.time.format.DateTimeFormatter
 
-@RequiresApi(Build.VERSION_CODES.O)
 class HabitosViewModel : ViewModel() {
 
-    val diasDaSemana = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
-    private val indexDeHoje = LocalDate.now().dayOfWeek.value - 1
+    // ========== CLIENTE HTTP ==========
+    private val api = RetrofitInstance.apiService
 
-    var diaSelecionado by mutableStateOf(diasDaSemana[indexDeHoje])
-        private set
+    // ========== ESTADOS DA TELA ==========
+    // São variáveis que a UI observa e se atualiza automaticamente
 
-    var habitosCadastrados by mutableStateOf(mapOf<String, List<Habito>>())
-        private set
+    private val _usuarioLogado = MutableStateFlow<UsuarioResponse?>(null)
+    val usuarioLogado: StateFlow<UsuarioResponse?> = _usuarioLogado
 
-    var mostrarModal by mutableStateOf(false)
-        private set
+    private val _habitosDoDia = MutableStateFlow<List<HabitoResponse>>(emptyList())
+    val habitosDoDia: StateFlow<List<HabitoResponse>> = _habitosDoDia
 
-    val categorias = listOf(
-        "Educação", "Saúde", "Trabalho", "Estudos",
-        "Responsabilidades", "Finanças", "Casa", "Lazer"
-    )
+    private val _progresso = MutableStateFlow<ProgressoResponse?>(null)
+    val progresso: StateFlow<ProgressoResponse?> = _progresso
 
-    val iconesDisponiveis: List<Pair<String, ImageVector>> = listOf(
-        "Star" to Icons.Filled.Star,
-        "AttachMoney" to Icons.Filled.AttachMoney,
-        "FitnessCenter" to Icons.Filled.FitnessCenter,
-        "Book" to Icons.Filled.Book,
-        "Home" to Icons.Filled.Home,
-        "Work" to Icons.Filled.Work,
-        "ShoppingCart" to Icons.Filled.ShoppingCart,
-        "Favorite" to Icons.Filled.Favorite,
-        "School" to Icons.Filled.School,
-        "Code" to Icons.Filled.Code,
-        "MusicNote" to Icons.Filled.MusicNote,
-        "DirectionsRun" to Icons.Filled.DirectionsRun,
-        "Restaurant" to Icons.Filled.Restaurant,
-        "Bedtime" to Icons.Filled.Bedtime,
-        "SelfImprovement" to Icons.Filled.SelfImprovement,
-        "Brush" to Icons.Filled.Brush,
-        "Pets" to Icons.Filled.Pets,
-        "FlightTakeoff" to Icons.Filled.FlightTakeoff,
-    )
+    private val _estaCarregando = MutableStateFlow(false)
+    val estaCarregando: StateFlow<Boolean> = _estaCarregando
 
-    var modoEdicao by mutableStateOf(false)
-        private set
+    private val _mensagemErro = MutableStateFlow<String?>(null)
+    val mensagemErro: StateFlow<String?> = _mensagemErro
 
-    fun selecionarDia(diaClicado: String) {
-        diaSelecionado = diaClicado
-    }
+    // ========== DIAS DA SEMANA (para novos hábitos) ==========
+    val diasDaSemana = listOf("SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO")
 
-    fun abrirModal() {
-        mostrarModal = true
-    }
+    // ========== CATEGORIAS ==========
+    val categorias = listOf("SAUDE", "ESTUDO", "TRABALHO", "LAZER", "OUTROS")
 
-    fun fecharModal() {
-        mostrarModal = false
-    }
+    // ========== FUNÇÕES DE AUTENTICAÇÃO ==========
 
-    fun adicionarHabito(nomeDigitado: String, categoria: String, icone: String) {
+    fun cadastrar(nome: String, sobrenome: String, email: String, senha: String) {
+        viewModelScope.launch {
+            _estaCarregando.value = true
+            _mensagemErro.value = null
 
-        val novoHabito = Habito(
-            id = (0..1000).random(),
-            nome = nomeDigitado,
-            concluido = false,
-            categoria = categoria,
-            icone = icone
-        )
+            try {
+                val request = UsuarioCadastroRequest(
+                    nome = nome,
+                    sobrenome = sobrenome,
+                    email = email,
+                    senhaHash = senha  // O backend aplica o hash
+                )
 
-        val listaAtual = habitosCadastrados[diaSelecionado] ?: emptyList()
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to (listaAtual + novoHabito))
+                val response = api.cadastrar(request)
 
-        fecharModal()
-    }
-
-    fun alternarStatusDoHabito(idDoHabito: Int) {
-        val listaAtual = habitosCadastrados[diaSelecionado] ?: return
-
-        val novaLista = listaAtual.map { habito ->
-            if (habito.id == idDoHabito) habito.copy(concluido = !habito.concluido) else habito
+                if (response.isSuccessful) {
+                    _usuarioLogado.value = response.body()
+                    // Após cadastrar, carrega os hábitos
+                    carregarHabitosDoDia()
+                } else {
+                    _mensagemErro.value = "Erro ao cadastrar: ${response.message()}"
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Falha na conexão: ${e.message}"
+            } finally {
+                _estaCarregando.value = false
+            }
         }
-
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to novaLista)
     }
 
-    fun calcularProgressoDoDia(): Int {
-        val habitosDoDia = habitosCadastrados[diaSelecionado] ?: emptyList()
-        val total = habitosDoDia.size
-        if (total == 0) return 0
+    fun login(email: String, senha: String) {
+        viewModelScope.launch {
+            _estaCarregando.value = true
+            _mensagemErro.value = null
 
-        val concluidos = habitosDoDia.count { it.concluido }
-        return (concluidos * 100) / total
+            try {
+                val request = UsuarioLoginRequest(
+                    email = email,
+                    senhaHash = senha
+                )
+
+                val response = api.login(request)
+
+                if (response.isSuccessful) {
+                    _usuarioLogado.value = response.body()
+                    carregarHabitosDoDia()
+                } else {
+                    _mensagemErro.value = "Email ou senha incorretos"
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Falha na conexão: ${e.message}"
+            } finally {
+                _estaCarregando.value = false
+            }
+        }
     }
 
-    fun alternarModoEdicao() {
-        modoEdicao = !modoEdicao
+    // ========== FUNÇÕES DE HÁBITOS ==========
+
+    fun carregarHabitosDoDia() {
+        val usuario = _usuarioLogado.value ?: return
+
+        viewModelScope.launch {
+            _estaCarregando.value = true
+
+            try {
+                val response = api.listarHabitosDoDia(usuario.id)
+                if (response.isSuccessful) {
+                    _habitosDoDia.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Erro ao carregar hábitos: ${e.message}"
+            } finally {
+                _estaCarregando.value = false
+            }
+        }
     }
 
-    fun removerHabito(idDoHabito: Int) {
-        val listaAtual = habitosCadastrados[diaSelecionado] ?: return
-        val novaLista = listaAtual.filter { it.id != idDoHabito }
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to novaLista)
+    fun adicionarHabito(nome: String, categoria: String, icone: String) {
+        val usuario = _usuarioLogado.value ?: return
+
+        viewModelScope.launch {
+            _estaCarregando.value = true
+
+            try {
+                val request = HabitoRequest(
+                    usuarioId = usuario.id,
+                    habitName = nome,
+                    categoria = categoria,
+                    habitIcon = icone,
+                    diasDaSemana = diasDaSemana  // Por padrão, todos os dias
+                )
+
+                val response = api.criarHabito(request)
+                if (response.isSuccessful) {
+                    carregarHabitosDoDia()  // Recarrega a lista
+                } else {
+                    _mensagemErro.value = "Erro ao criar hábito: ${response.message()}"
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Falha na conexão: ${e.message}"
+            } finally {
+                _estaCarregando.value = false
+            }
+        }
+    }
+
+    fun deletarHabito(habitId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = api.deletarHabito(habitId)
+                if (response.isSuccessful) {
+                    carregarHabitosDoDia()  // Atualiza a lista
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Erro ao deletar: ${e.message}"
+            }
+        }
+    }
+
+    // ========== FUNÇÕES DE CHECK-IN ==========
+
+    fun realizarCheckin(habitId: Long) {
+        viewModelScope.launch {
+            try {
+                val hoje = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val request = CheckinRequest(
+                    habitId = habitId,
+                    dataCheckin = hoje
+                )
+
+                val response = api.realizarCheckin(request)
+                if (response.isSuccessful) {
+                    carregarHabitosDoDia()
+                    carregarProgresso()
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Erro ao fazer check-in: ${e.message}"
+            }
+        }
+    }
+
+    fun carregarProgresso() {
+        val usuario = _usuarioLogado.value ?: return
+
+        viewModelScope.launch {
+            try {
+                val response = api.progressoDoDia(usuario.id)
+                if (response.isSuccessful) {
+                    _progresso.value = response.body()
+                }
+            } catch (e: Exception) {
+                _mensagemErro.value = "Erro ao carregar progresso: ${e.message}"
+            }
+        }
+    }
+
+    // ========== FUNÇÃO AUXILIAR ==========
+
+    fun calcularPorcentagemProgresso(): Float {
+        val prog = _progresso.value ?: return 0f
+        return if (prog.total > 0) {
+            (prog.concluidos.toFloat() / prog.total.toFloat()) * 100f
+        } else 0f
+    }
+
+    fun limparErro() {
+        _mensagemErro.value = null
     }
 }

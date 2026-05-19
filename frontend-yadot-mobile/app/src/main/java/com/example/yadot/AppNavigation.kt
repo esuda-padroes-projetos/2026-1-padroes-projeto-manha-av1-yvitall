@@ -32,7 +32,7 @@ fun AppNavigation(modifier: Modifier = Modifier){
             Cadastrar(modifier, navController)
         }
         composable(Rotas.TELA_PRINCIPAL) {
-            SemHabitos(modifier, navController, viewModel())
+            SemHabitos(modifier, navController)
         }
     }
 }

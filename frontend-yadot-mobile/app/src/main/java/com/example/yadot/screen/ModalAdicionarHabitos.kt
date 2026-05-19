@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,8 +38,13 @@ fun ModalAdicionarHabito(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // ========== ESTADOS DO VIEWMODEL ==========
+    val estaCarregando by viewModel.estaCarregando.collectAsState()
+
+    // ========== CAMPOS DO FORMULÁRIO ==========
     var nomeDoHabito by remember { mutableStateOf("") }
     var erroNome by remember { mutableStateOf(false) }
+    var erroCategoria by remember { mutableStateOf(false) }
     var categoriaSelecionada by remember { mutableStateOf("") }
     var dropdownAberto by remember { mutableStateOf(false) }
     var iconeSelecionado by remember { mutableStateOf("Star") }
@@ -54,30 +61,55 @@ fun ModalAdicionarHabito(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
 
-            // Cabeçalho
+            // ========== CABEÇALHO ==========
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = aoFechar) {
+                TextButton(
+                    onClick = aoFechar,
+                    enabled = !estaCarregando
+                ) {
                     Text("Cancelar", color = VermelhoErro, fontWeight = FontWeight.Bold)
                 }
                 TextButton(
                     onClick = {
-                        if (nomeDoHabito.isNotBlank()) {
-                            aoSalvar(nomeDoHabito.trim(), categoriaSelecionada, iconeSelecionado)
-                        } else {
+                        // Validação
+                        var temErro = false
+
+                        if (nomeDoHabito.isBlank()) {
                             erroNome = true
+                            temErro = true
                         }
-                    }
+
+                        if (categoriaSelecionada.isBlank()) {
+                            erroCategoria = true
+                            temErro = true
+                        }
+
+                        if (!temErro) {
+                            // Chama o callback que está conectado ao ViewModel
+                            aoSalvar(nomeDoHabito.trim(), categoriaSelecionada, iconeSelecionado)
+                        }
+                    },
+                    enabled = !estaCarregando
                 ) {
-                    Text("Salvar", color = CinzaEscuro, fontWeight = FontWeight.Bold)
+                    if (estaCarregando) {
+                        CircularProgressIndicator(
+                            color = CinzaEscuro,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Salvar", color = CinzaEscuro, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ========== TÍTULO ==========
             Text(
                 text = "Adicionar Hábito",
                 fontSize = 32.sp,
@@ -87,7 +119,7 @@ fun ModalAdicionarHabito(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Campo nome
+            // ========== CAMPO NOME ==========
             Text("Nome do hábito", fontWeight = FontWeight.Bold, color = CinzaEscuro)
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
@@ -103,6 +135,7 @@ fun ModalAdicionarHabito(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                enabled = !estaCarregando,
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Transparent,
                     focusedContainerColor = Color.Transparent,
@@ -113,30 +146,48 @@ fun ModalAdicionarHabito(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Dropdown de categoria
+            // ========== DROPDOWN DE CATEGORIA ==========
             Text("Categoria", fontWeight = FontWeight.Bold, color = CinzaEscuro)
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Indicador de erro da categoria
+            if (erroCategoria) {
+                Text(
+                    "Selecione uma categoria",
+                    color = VermelhoErro,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             ExposedDropdownMenuBox(
                 expanded = dropdownAberto,
-                onExpandedChange = { dropdownAberto = !dropdownAberto }
+                onExpandedChange = {
+                    if (!estaCarregando) {
+                        dropdownAberto = !dropdownAberto
+                        erroCategoria = false
+                    }
+                }
             ) {
                 OutlinedTextField(
                     value = categoriaSelecionada,
                     onValueChange = {},
                     readOnly = true,
-                    placeholder = { Text("Selecione") },
+                    placeholder = { Text("Selecione uma categoria") },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownAberto)
                     },
+                    isError = erroCategoria,
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
                     shape = RoundedCornerShape(12.dp),
+                    enabled = !estaCarregando,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = Color.Transparent,
                         focusedContainerColor = Color.Transparent,
-                        unfocusedBorderColor = Preto,
-                        focusedBorderColor = Preto
+                        unfocusedBorderColor = if (erroCategoria) VermelhoErro else Preto,
+                        focusedBorderColor = if (erroCategoria) VermelhoErro else Preto
                     )
                 )
                 ExposedDropdownMenu(
@@ -145,10 +196,16 @@ fun ModalAdicionarHabito(
                 ) {
                     viewModel.categorias.forEach { categoria ->
                         DropdownMenuItem(
-                            text = { Text(categoria) },
+                            text = {
+                                Text(
+                                    text = categoria,
+                                    fontSize = 16.sp
+                                )
+                            },
                             onClick = {
                                 categoriaSelecionada = categoria
                                 dropdownAberto = false
+                                erroCategoria = false
                             }
                         )
                     }
@@ -157,55 +214,76 @@ fun ModalAdicionarHabito(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Grid de ícones
+            // ========== GRID DE ÍCONES ==========
             Text("Ícone", fontWeight = FontWeight.Bold, color = CinzaEscuro)
             Spacer(modifier = Modifier.height(8.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(6),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(viewModel.iconesDisponiveis) { (nomeIcone, vetorIcone) ->
-                    val selecionado = iconeSelecionado == nomeIcone
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selecionado) Preto else CinzaInativo)
-                            .clickable { iconeSelecionado = nomeIcone }
-                            .padding(10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = vetorIcone,
-                            contentDescription = nomeIcone,
-                            tint = if (selecionado) Branco else CinzaEscuro
-                        )
+
+            if (viewModel.iconesDisponiveis.isEmpty()) {
+                Text(
+                    "Nenhum ícone disponível",
+                    color = CinzaInativo,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(6),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(viewModel.iconesDisponiveis) { (nomeIcone, vetorIcone) ->
+                        val selecionado = iconeSelecionado == nomeIcone
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selecionado) Preto else CinzaInativo)
+                                .clickable(enabled = !estaCarregando) {
+                                    iconeSelecionado = nomeIcone
+                                }
+                                .padding(10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = vetorIcone,
+                                contentDescription = nomeIcone,
+                                tint = if (selecionado) Branco else CinzaEscuro,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Checkbox Google Calendar
+            // ========== CHECKBOX GOOGLE CALENDAR (FUTURO) ==========
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { adicionarAoCalendar = !adicionarAoCalendar }
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(enabled = !estaCarregando) {
+                        adicionarAoCalendar = !adicionarAoCalendar
+                    }
+                    .padding(vertical = 4.dp)
             ) {
                 Checkbox(
                     checked = adicionarAoCalendar,
                     onCheckedChange = { adicionarAoCalendar = it },
-                    colors = CheckboxDefaults.colors(checkedColor = Preto)
+                    colors = CheckboxDefaults.colors(checkedColor = Preto),
+                    enabled = !estaCarregando
                 )
                 Text(
                     text = "Adicionar ao Google Calendar",
                     fontWeight = FontWeight.Bold,
-                    color = Preto
+                    color = Preto,
+                    fontSize = 14.sp
                 )
             }
 
+            // ========== ESPAÇO FINAL ==========
             Spacer(modifier = Modifier.height(40.dp))
         }
     }

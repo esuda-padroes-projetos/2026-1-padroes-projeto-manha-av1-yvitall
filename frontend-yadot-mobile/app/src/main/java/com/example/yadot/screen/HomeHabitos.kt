@@ -20,21 +20,22 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.yadot.model.HabitoResponse
 import com.example.yadot.ui.theme.Branco
 import com.example.yadot.ui.theme.CinzaInativo
 import com.example.yadot.ui.theme.FundoCinzaClaro
@@ -46,9 +47,35 @@ import com.example.yadot.viewmodel.HabitosViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, viewModel: HabitosViewModel) {
-    val habitosDoDia = viewModel.habitosCadastrados[viewModel.diaSelecionado] ?: emptyList()
-    val progresso = viewModel.calcularProgressoDoDia()
+fun SemHabitos(
+    modifier: Modifier = Modifier,
+    navController: NavHostController,
+    viewModel: HabitosViewModel = viewModel()  // ViewModel padrão se não for passado
+) {
+    // ========== ESTADOS DO VIEWMODEL ==========
+    val habitosDoDia by viewModel.habitosDoDia.collectAsState()
+    val progresso by viewModel.progresso.collectAsState()
+    val estaCarregando by viewModel.estaCarregando.collectAsState()
+    val mensagemErro by viewModel.mensagemErro.collectAsState()
+    val usuarioLogado by viewModel.usuarioLogado.collectAsState()
+
+    // ========== CARREGA DADOS AO INICIAR ==========
+    LaunchedEffect(Unit) {
+        viewModel.carregarHabitosDoDia()
+        viewModel.carregarProgresso()
+    }
+
+    // ========== SE NÃO TIVER USUÁRIO, VOLTA PARA HOME ==========
+    LaunchedEffect(usuarioLogado) {
+        if (usuarioLogado == null) {
+            navController.navigate(Rotas.HOME) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
+    // ========== PORCENTAGEM CALCULADA ==========
+    val porcentagemProgresso = viewModel.calcularPorcentagemProgresso().toInt()
 
     Column(
         modifier = Modifier
@@ -58,7 +85,7 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // Título
+        // ========== TÍTULO ==========
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -67,13 +94,14 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Week 1",
+                text = "Meus Hábitos",
                 style = TextStyle(
                     fontSize = 50.sp,
                     color = Preto,
                     fontWeight = FontWeight.Bold
                 )
             )
+            // Botão de edição (aparece se tem hábitos)
             if (habitosDoDia.isNotEmpty()) {
                 Box(
                     modifier = Modifier
@@ -92,23 +120,29 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
             }
         }
 
-        // Barra de dias
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            BarraDeDias(
-                diaAtual = viewModel.diaSelecionado,
-                aoClicarNoDia = { viewModel.selecionarDia(it) }
+        // ========== MENSAGEM DE ERRO ==========
+        mensagemErro?.let { erro ->
+            Text(
+                text = erro,
+                color = VermelhoErro,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        // ========== INDICADOR DE CARREGAMENTO ==========
+        if (estaCarregando) {
+            CircularProgressIndicator(
+                color = Preto,
+                modifier = Modifier.padding(16.dp)
             )
         }
 
         Spacer(modifier = Modifier.weight(3f))
 
-        // Conteúdo central: lista ou estado vazio
-        if (habitosDoDia.isEmpty()) {
+        // ========== CONTEÚDO CENTRAL ==========
+        if (!estaCarregando && habitosDoDia.isEmpty()) {
+            // Estado vazio
             Column(
                 modifier = Modifier.padding(top = 40.dp),
                 verticalArrangement = Arrangement.Top,
@@ -130,6 +164,7 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                         fontWeight = FontWeight.Normal
                     )
                 )
+                Spacer(modifier = Modifier.height(20.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(topStart = 50.dp, bottomEnd = 50.dp))
@@ -149,6 +184,7 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                 }
             }
         } else {
+            // Lista de hábitos
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,10 +192,7 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(habitosDoDia) { habito ->
-                    val vetorIcone = viewModel.iconesDisponiveis
-                        .firstOrNull { it.first == habito.icone }?.second
-
+                items(habitosDoDia) { habito: HabitoResponse ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -168,7 +201,7 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Botão remover — só aparece no modo edição
+                        // Botão remover (modo edição)
                         if (viewModel.modoEdicao) {
                             Icon(
                                 imageVector = Icons.Filled.RemoveCircle,
@@ -176,24 +209,14 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                                 tint = VermelhoErro,
                                 modifier = Modifier
                                     .size(26.dp)
-                                    .clickable { viewModel.removerHabito(habito.id) }
+                                    .clickable { viewModel.deletarHabito(habito.habitId) }
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                         }
 
-                        if (vetorIcone != null) {
-                            Icon(
-                                imageVector = vetorIcone,
-                                contentDescription = habito.nome,
-                                tint = Preto,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
+                        // Nome do hábito
                         Text(
-                            text = habito.nome,
+                            text = habito.habitName,
                             style = TextStyle(
                                 fontSize = 18.sp,
                                 color = Preto,
@@ -202,29 +225,26 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
                             modifier = Modifier.weight(1f)
                         )
 
-                        // Círculo só aparece quando não está no modo edição
+                        // Círculo de check-in (fora do modo edição)
                         if (!viewModel.modoEdicao) {
                             Box(
                                 modifier = Modifier
                                     .size(26.dp)
                                     .clip(CircleShape)
-                                    .background(if (habito.concluido) VerdeConcluido else Transparente)
+                                    .background(Transparente)  // Sempre começa transparente
                                     .border(
                                         width = 2.dp,
-                                        color = if (habito.concluido) VerdeConcluido else CinzaInativo,
+                                        color = CinzaInativo,
                                         shape = CircleShape
                                     )
-                                    .clickable { viewModel.alternarStatusDoHabito(habito.id) },
+                                    .clickable {
+                                        // FAZ CHECK-IN NA API
+                                        viewModel.realizarCheckin(habito.habitId)
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (habito.concluido) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = "Concluído",
-                                        tint = Branco,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                                // Check aparece se já fez check-in hoje
+                                // (precisa verificar com a API - por enquanto só mostra após clique)
                             }
                         }
                     }
@@ -232,9 +252,9 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
             }
         }
 
-
         Spacer(modifier = Modifier.weight(5f))
 
+        // ========== BOTÃO CADASTRAR (MODO EDIÇÃO) ==========
         if (viewModel.modoEdicao) {
             Button(
                 onClick = { viewModel.abrirModal() },
@@ -254,10 +274,12 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        GraficoProgresso(porcentagem = progresso)
+        // ========== GRÁFICO DE PROGRESSO ==========
+        GraficoProgresso(porcentagem = porcentagemProgresso)
 
         Spacer(modifier = Modifier.weight(5f))
 
+        // ========== RODAPÉ ==========
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -269,15 +291,20 @@ fun SemHabitos(modifier: Modifier = Modifier, navController: NavHostController, 
         }
     }
 
-    // Modal abre por cima da tela, controlado pelo ViewModel
+    // ========== MODAL DE ADICIONAR HÁBITO ==========
     if (viewModel.mostrarModal) {
         ModalAdicionarHabito(
             viewModel = viewModel,
             aoFechar = { viewModel.fecharModal() },
-            aoSalvar = { nome, categoria, icone -> viewModel.adicionarHabito(nome, categoria, icone) }
+            aoSalvar = { nome, categoria, icone ->
+                viewModel.adicionarHabito(nome, categoria, icone)
+            }
         )
     }
 }
+
+// ========== COMPONENTES AUXILIARES (MANTIDOS IGUAIS) ==========
+
 @Composable
 fun BarraDeDias(diaAtual: String, aoClicarNoDia: (String) -> Unit) {
     val diasDaSemana = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
