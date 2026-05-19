@@ -1,5 +1,8 @@
 package com.example.yadot.screen
 
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +43,9 @@ import com.example.yadot.ui.theme.Branco
 import com.example.yadot.ui.theme.Preto
 import com.example.yadot.ui.theme.VermelhoErro
 import com.example.yadot.viewmodel.HabitosViewModel
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.IconButton
 
 @Composable
 fun Cadastrar(modifier: Modifier = Modifier, navController: NavHostController) {
@@ -64,6 +70,7 @@ fun Cadastrar(modifier: Modifier = Modifier, navController: NavHostController) {
     var sobrenome by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var senha by remember { mutableStateOf("") }
+    var senhaVisivel by remember { mutableStateOf(false) }
     var confirmarSenha by remember { mutableStateOf("") }
     var erroValidacao by remember { mutableStateOf<String?>(null) }
 
@@ -146,14 +153,21 @@ fun Cadastrar(modifier: Modifier = Modifier, navController: NavHostController) {
         // ========== CAMPO SENHA ==========
         OutlinedTextField(
             value = senha,
-            onValueChange = {
-                senha = it
-                erroValidacao = null
-                viewModel.limparErro()
-            },
-            label = { Text(text = "Digite sua Senha") },
+            onValueChange = { senha = it },
+            label = { Text("Digite sua Senha") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (senhaVisivel) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { senhaVisivel = !senhaVisivel }) {
+                    Icon(
+                        imageVector = if (senhaVisivel) Icons.Filled.VisibilityOff
+                        else Icons.Filled.Visibility,
+                        contentDescription = if (senhaVisivel) "Ocultar senha"
+                        else "Mostrar senha"
+                    )
+                }
+            },
             enabled = !estaCarregando
         )
 
@@ -162,14 +176,21 @@ fun Cadastrar(modifier: Modifier = Modifier, navController: NavHostController) {
         // ========== CAMPO CONFIRMAR SENHA ==========
         OutlinedTextField(
             value = confirmarSenha,
-            onValueChange = {
-                confirmarSenha = it
-                erroValidacao = null
-                viewModel.limparErro()
-            },
-            label = { Text(text = "Confirme sua senha") },
+            onValueChange = { confirmarSenha = it },
+            label = { Text("Digite sua Senha") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (senhaVisivel) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { senhaVisivel = !senhaVisivel }) {
+                    Icon(
+                        imageVector = if (senhaVisivel) Icons.Filled.VisibilityOff
+                        else Icons.Filled.Visibility,
+                        contentDescription = if (senhaVisivel) "Ocultar senha"
+                        else "Mostrar senha"
+                    )
+                }
+            },
             enabled = !estaCarregando
         )
 

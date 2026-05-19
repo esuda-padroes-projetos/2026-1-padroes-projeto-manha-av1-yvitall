@@ -151,16 +151,16 @@ fun Entrar(modifier: Modifier = Modifier, navController: NavHostController) {
         ) {
             Button(
                 onClick = {
-                    // Validações locais
                     when {
                         email.isBlank() -> erroValidacao = "Email é obrigatório"
                         senha.isBlank() -> erroValidacao = "Senha é obrigatória"
                         else -> {
                             erroValidacao = null
-                            // CHAMA A API REAL
                             viewModel.login(
                                 email = email.trim(),
-                                senha = senha
+                                senha = senha,
+                                onSucesso = { /* navegação já feita pelo LaunchedEffect */ },
+                                onErro = { erro -> erroValidacao = erro }
                             )
                         }
                     }
