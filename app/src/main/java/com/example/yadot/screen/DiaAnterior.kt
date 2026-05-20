@@ -1,5 +1,6 @@
 package com.example.yadot.screen
 
+import androidx.compose.foundation.clickable // ← Certifique-se de ter esse import no topo do arquivo!
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -222,6 +223,50 @@ private fun LinhaHabito(habito: HabitoDiaAnterior) {
                 tint = Color.Red,
                 modifier = Modifier.size(24.dp)
             )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+//  SEÇÃO 3.5 — COMPONENTE COMPLEMENTAR: BARRA DE DIAS
+// ════════════════════════════════════════════════════════════
+
+@Composable
+fun BarraDeDias(
+    diaAtual: String,
+    aoClicarNoDia: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dias = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        dias.forEach { dia ->
+            val selecionado = (dia == diaAtual)
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(if (selecionado) DiaPreto else Color.Transparent)
+                    .clickable { aoClicarNoDia(dia) }
+            ) {
+                Text(
+                    text = dia,
+                    style = TextStyle(
+                        fontFamily = Inter,
+                        fontSize = 14.sp,
+                        fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selecionado) DiaBranco else DiaPreto
+                    )
+                )
+            }
         }
     }
 }

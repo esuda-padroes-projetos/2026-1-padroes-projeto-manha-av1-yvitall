@@ -1,5 +1,7 @@
 package com.example.yadot.screen
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +25,7 @@ import com.example.yadot.ui.theme.Preto
 import com.example.yadot.viewmodel.HabitosViewModel
 
 // ── Entrar.kt — conectado com a API via ViewModel ────────────
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun Entrar(
     modifier: Modifier = Modifier,
@@ -80,7 +84,7 @@ fun Entrar(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = uiState.erro ?: "",
-                color = androidx.compose.ui.graphics.Color.Red,
+                color = Color.Red,
                 fontSize = 13.sp
             )
         }
@@ -91,15 +95,21 @@ fun Entrar(
         ) {
             Button(
                 onClick = {
-                    // Chama a API de login → navega só se der certo
-                    viewModel.login(email, senha) {
-                        navController.navigate(Rotas.HOME)
-                    }
+                    viewModel.login(
+                        email = email,
+                        senha = senha,
+                        onSucesso = {
+                            navController.navigate(Rotas.HOME)
+                        },
+                        onErro = { mensagem ->
+                            // O ViewModel já atualiza o uiState.erro internamente
+                        }
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(1f).height(60.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Preto),
-                enabled = !uiState.carregando   // desabilita enquanto carrega
+                enabled = !uiState.carregando
             ) {
                 if (uiState.carregando) {
                     CircularProgressIndicator(color = Branco, modifier = Modifier.size(24.dp))

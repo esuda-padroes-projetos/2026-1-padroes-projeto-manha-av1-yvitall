@@ -11,12 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.yadot.model.Habito
-import com.example.yadot.network.CheckinRequest
-import com.example.yadot.network.RetrofitClient
-import com.example.yadot.network.UsuarioCadastroRequest
-import com.example.yadot.network.UsuarioLoginRequest
-import com.example.yadot.network.UsuarioResponse
-import com.example.yadot.network.ProgressoResponse
+import com.example.yadot.network.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -40,18 +35,8 @@ class EstrategiaMsgPadrao : EstrategiaMsg {
     }
 }
 
-class EstrategiaMsgIngles : EstrategiaMsg {
-    override fun gerar(progresso: Int) = when {
-        progresso == 100 -> "Perfect day! You crushed it! 🔥"
-        progresso >= 80  -> "Super productive day! Keep the momentum."
-        progresso >= 50  -> "Good progress! More than half done."
-        progresso > 0    -> "Good start, tomorrow will be better!"
-        else             -> "No tasks recorded for this day."
-    }
-}
-
 // ════════════════════════════════════════════════════════════
-//  ESTADO DA UI — Observer via StateFlow
+//  ESTADO DA UI
 // ════════════════════════════════════════════════════════════
 
 data class RankingItem(
@@ -64,6 +49,7 @@ data class HabitosUiState(
     val carregando: Boolean = false,
     val erro: String? = null,
     val usuarioLogado: UsuarioResponse? = null,
+    val habitosDeHoje: List<HabitoResponse> = emptyList(),
     val progressoHoje: ProgressoResponse? = null,
     val ranking: List<RankingItem> = emptyList()
 )
@@ -77,12 +63,10 @@ class HabitosViewModel(
     val uiState: StateFlow<HabitosUiState> = _uiState
 
     val diasDaSemana = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
-    private val indexDeHoje = LocalDate.now().dayOfWeek.value - 1
+    private val indexDeHoje get() = LocalDate.now().dayOfWeek.value - 1
+    // "get()" recalcula toda vez que é chamado — sem isso ficaria preso no dia do primeiro acesso
 
     var diaSelecionado by mutableStateOf(diasDaSemana[indexDeHoje])
-        private set
-
-    var habitosCadastrados by mutableStateOf(mapOf<String, List<Habito>>())
         private set
 
     var mostrarModal by mutableStateOf(false)
@@ -92,8 +76,9 @@ class HabitosViewModel(
         private set
 
     val categorias = listOf(
-        "Educação", "Saúde", "Trabalho", "Estudos",
-        "Responsabilidades", "Finanças", "Casa", "Lazer"
+        "EDUCACAO", "SAUDE", "TRABALHO", "ESTUDOS",
+        "RESPONSABILIDADES", "FINANCAS", "CASA", "LAZER"
+        // valores em maiúsculo sem acento — exatamente como estão no enum Java
     )
 
     val iconesDisponiveis: List<Pair<String, ImageVector>> = listOf(
@@ -115,118 +100,223 @@ class HabitosViewModel(
         "Pets"            to Icons.Filled.Pets,
     )
 
-    // Funções locais
+    // ── Navegação e modal ──────────────────────────────────
 
-    fun selecionarDia(diaClicado: String) { diaSelecionado = diaClicado }
+    fun selecionarDia(diaClicado: String) {
+        diaSelecionado = diaClicado
+    }
+
     fun abrirModal()         { mostrarModal = true  }
     fun fecharModal()        { mostrarModal = false }
     fun alternarModoEdicao() { modoEdicao = !modoEdicao }
 
-    fun adicionarHabito(nomeDigitado: String, categoria: String, icone: String) {
-        val novoHabito = Habito(
-            id = (0..1000).random(),
-            nome = nomeDigitado,
-            concluido = false,
-            categoria = categoria,
-            icone = icone
-        )
-        val lista = habitosCadastrados[diaSelecionado] ?: emptyList()
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to (lista + novoHabito))
-        fecharModal()
+    // ── Regra de edição ────────────────────────────────────
+
+    fun ehDiaEditavel(): Boolean {
+        // Compara o dia selecionado com o dia real de hoje
+        // Se o usuário está em "Ter" e hoje é "Qua" → não pode editar
+        return diaSelecionado == diasDaSemana[indexDeHoje]
     }
 
-    fun alternarStatusDoHabito(idDoHabito: Int) {
-        val lista = habitosCadastrados[diaSelecionado] ?: return
-        val novaLista = lista.map { h ->
-            if (h.id == idDoHabito) h.copy(concluido = !h.concluido) else h
-        }
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to novaLista)
-    }
+    // ── Autenticação ───────────────────────────────────────
 
-    fun removerHabito(idDoHabito: Int) {
-        val lista = habitosCadastrados[diaSelecionado] ?: return
-        habitosCadastrados = habitosCadastrados + (diaSelecionado to lista.filter { it.id != idDoHabito })
-    }
-
-    // Cálculos locais
-
-    fun calcularProgressoDoDia(): Int {
-        val habitos = habitosCadastrados[diaSelecionado] ?: return 0
-        if (habitos.isEmpty()) return 0
-        return (habitos.count { it.concluido } * 100) / habitos.size
-    }
-
-    fun calcularProgressoDoDiaPorNome(dia: String): Int {
-        val habitos = habitosCadastrados[dia] ?: return 0
-        if (habitos.isEmpty()) return 0
-        return (habitos.count { it.concluido } * 100) / habitos.size
-    }
-
-    fun calcularMensagemMotivacional(dia: String): String {
-        return estrategiaMsg.gerar(calcularProgressoDoDiaPorNome(dia))
-    }
-
-    fun calcularOfensivaAteDia(diaAlvo: String): Int {
-        val indexAlvo = diasDaSemana.indexOf(diaAlvo)
-        if (indexAlvo < 0) return 0
-        var ofensiva = 0
-        for (i in (indexAlvo - 1) downTo 0) {
-            val dia = diasDaSemana[i]
-            val habitos = habitosCadastrados[dia] ?: emptyList()
-            if (habitos.isEmpty()) break
-            if (calcularProgressoDoDiaPorNome(dia) == 100) ofensiva++ else break
-        }
-        val habitosAlvo = habitosCadastrados[diaAlvo] ?: emptyList()
-        if (habitosAlvo.isNotEmpty() && calcularProgressoDoDiaPorNome(diaAlvo) == 100) ofensiva++
-        return ofensiva
-    }
-
-    fun calcularOfensiva(): Int = calcularOfensivaAteDia(diasDaSemana[indexDeHoje])
-
-    // Chamadas à API
-
-    /** POST /usuarios/login */
-    fun login(email: String, senha: String, onSucesso: () -> Unit) {
+    fun login(email: String, senha: String, onSucesso: () -> Unit, onErro: (String) -> Unit) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(carregando = true, erro = null)
             try {
-                val usuario = RetrofitClient.api.login(UsuarioLoginRequest(email, senhaHash = senha))
-                _uiState.value = _uiState.value.copy(usuarioLogado = usuario)
+                val usuario = RetrofitClient.api.login(
+                    UsuarioLoginRequest(email = email, senhaHash = senha)
+                )
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    usuarioLogado = usuario
+                )
+                carregarHabitosDeHoje() // já carrega os hábitos ao logar
                 onSucesso()
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(carregando = false)
+                onErro("Erro no login: ${e.message}")
+                // agora o erro aparece na tela — a tela recebe via onErro
+            }
         }
     }
 
-    fun cadastrar(nome: String, email: String, senha: String, onSucesso: () -> Unit) {
+    fun cadastrar(
+        nome: String,
+        sobrenome: String,  // adicionado — era sempre vazio antes
+        email: String,
+        senha: String,
+        onSucesso: () -> Unit,
+        onErro: (String) -> Unit
+    ) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(carregando = true, erro = null)
             try {
                 val usuario = RetrofitClient.api.cadastrarUsuario(
-                    UsuarioCadastroRequest(nome = nome, sobrenome = "", email = email, senhaHash = senha)
+                    UsuarioCadastroRequest(
+                        nome = nome,
+                        sobrenome = sobrenome, // agora vem da tela de cadastro
+                        email = email,
+                        senhaHash = senha
+                    )
                 )
-                _uiState.value = _uiState.value.copy(usuarioLogado = usuario)
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    usuarioLogado = usuario
+                )
                 onSucesso()
-            } catch (e: Exception) { /* tratar erro */ }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(carregando = false)
+                onErro("Erro no cadastro: ${e.message}")
+            }
         }
     }
 
-    /** GET /checkins/progresso/{id} */
-    fun carregarProgressoDeHoje() {
+    // ── Hábitos ────────────────────────────────────────────
+
+    fun carregarHabitosDeHoje() {
         val userId = _uiState.value.usuarioLogado?.id ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(carregando = true)
             try {
-                val progresso = RetrofitClient.api.progressoDoDia(userId)
-                _uiState.value = _uiState.value.copy(carregando = false, progressoHoje = progresso)
+                val habitos = RetrofitClient.api.listarHabitosDeHoje(userId)
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    habitosDeHoje = habitos
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     carregando = false,
+                    erro = "Erro ao carregar hábitos: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun adicionarHabito(
+        nomeDigitado: String,
+        categoria: String,
+        icone: String,
+        diasSelecionados: List<String> // quais dias o hábito se repete
+    ) {
+        val userId = _uiState.value.usuarioLogado?.id ?: return
+        // Bug corrigido: agora chama a API de verdade em vez de só salvar localmente
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(carregando = true)
+            try {
+                RetrofitClient.api.criarHabito(
+                    HabitoRequest(
+                        usuarioId = userId,
+                        habitName = nomeDigitado,
+                        categoria = categoria,
+                        habitIcon = icone,
+                        diasDaSemana = diasSelecionados
+                    )
+                )
+                fecharModal()
+                carregarHabitosDeHoje() // recarrega a lista após criar
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    erro = "Erro ao criar hábito: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun editarHabito(
+        habitoId: Long,
+        nomeDigitado: String,
+        categoria: String,
+        icone: String,
+        diasSelecionados: List<String>
+    ) {
+        if (!ehDiaEditavel()) return // bloqueia se não for hoje
+        val userId = _uiState.value.usuarioLogado?.id ?: return
+
+        viewModelScope.launch {
+            try {
+                RetrofitClient.api.editarHabito(
+                    habitoId,
+                    HabitoRequest(
+                        usuarioId = userId,
+                        habitName = nomeDigitado,
+                        categoria = categoria,
+                        habitIcon = icone,
+                        diasDaSemana = diasSelecionados
+                    )
+                )
+                carregarHabitosDeHoje()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    erro = "Erro ao editar hábito: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun removerHabito(habitoId: Long) {
+        if (!ehDiaEditavel()) return // bloqueia se não for hoje
+        viewModelScope.launch {
+            try {
+                RetrofitClient.api.deletarHabito(habitoId)
+                carregarHabitosDeHoje()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    erro = "Erro ao remover hábito: ${e.message}"
+                )
+            }
+        }
+    }
+
+    // ── Checkin ────────────────────────────────────────────
+
+    fun realizarCheckin(habitoId: Long) {
+        if (!ehDiaEditavel()) return // não permite checkin em dias passados
+        viewModelScope.launch {
+            try {
+                RetrofitClient.api.realizarCheckin(
+                    CheckinRequest(
+                        habitId = habitoId,
+                        dataCheckin = LocalDate.now().toString() // "2026-05-17"
+                    )
+                )
+                carregarProgressoDeHoje()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    erro = "Erro ao realizar checkin: ${e.message}"
+                )
+            }
+        }
+    }
+
+    // ── Progresso ──────────────────────────────────────────
+
+    fun carregarProgressoDeHoje() {
+        val userId = _uiState.value.usuarioLogado?.id ?: return
+        viewModelScope.launch {
+            try {
+                val progresso = RetrofitClient.api.progressoDoDia(userId)
+                _uiState.value = _uiState.value.copy(progressoHoje = progresso)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
                     erro = "Erro ao carregar progresso: ${e.message}"
                 )
             }
         }
     }
 
+    fun calcularMensagemMotivacional(): String {
+        val prog = _uiState.value.progressoHoje ?: return estrategiaMsg.gerar(0)
+        val percentual = if (prog.total > 0)
+            ((prog.concluidos.toDouble() / prog.total) * 100).toInt()
+        else 0
+        return estrategiaMsg.gerar(percentual)
+    }
 
-    /** GET /usuarios + GET /checkins/progresso/{id} para cada um */
+    // ── Ranking ────────────────────────────────────────────
+
     fun carregarRanking() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(carregando = true)
@@ -235,40 +325,19 @@ class HabitosViewModel(
                 val itens = usuarios.mapNotNull { usuario ->
                     try {
                         val prog = RetrofitClient.api.progressoDoDia(usuario.id)
-                        // Cálculo manual já que o DTO dele mudou:
-                        val percentual = if (prog.total > 0) ((prog.concluidos.toDouble() / prog.total) * 100).toInt() else 0
-
-                        // Como o DTO dele não tem mais ofensivaDias, vamos usar 0 ou o total de concluidos por enquanto
+                        val percentual = if (prog.total > 0)
+                            ((prog.concluidos.toDouble() / prog.total) * 100).toInt()
+                        else 0
                         RankingItem(usuario.nome, percentual, prog.concluidos.toInt())
                     } catch (e: Exception) { null }
-                }.sortedByDescending { it.percentual } // Ordena pelo percentual
+                }.sortedByDescending { it.percentual }
                 _uiState.value = _uiState.value.copy(carregando = false, ranking = itens)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(carregando = false, erro = "Erro no ranking: ${e.message}")
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    erro = "Erro no ranking: ${e.message}"
+                )
             }
         }
     }
-
-    /** POST /checkins */
-    /** POST /checkins */
-    fun realizarCheckin(habitoId: Long) {
-        viewModelScope.launch {
-            try {
-                val dataHoje = LocalDate.now().toString()
-                RetrofitClient.api.realizarCheckin(CheckinRequest(habitoId, dataHoje))
-                // Recarrega os dados após marcar como feito
-                carregarProgressoDeHoje()
-            } catch (e: Exception) { /* erro */ }
-        }
-    }
-
-    // No seu ViewModel, garanta que a verificação de "dia editável" considere o hoje real
-    fun ehDiaEditavel(dia: String): Boolean {
-        val hojeNome = LocalDate.now().dayOfWeek.value.let {
-            // Converte o valor do dia da semana para o seu padrão (Seg, Ter...)
-            diasDaSemana[it - 1]
-        }
-        return dia == hojeNome // Permite editar se o dia selecionado for o nome do dia de hoje
-    }
-
 }

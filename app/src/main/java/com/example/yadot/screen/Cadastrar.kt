@@ -32,6 +32,7 @@ fun Cadastrar(
     viewModel: HabitosViewModel
 ) {
     var nome           by remember { mutableStateOf("") }
+    var sobrenome      by remember { mutableStateOf("") } // Adicionado para alinhar com o VM
     var email          by remember { mutableStateOf("") }
     var senha          by remember { mutableStateOf("") }
     var confirmarSenha by remember { mutableStateOf("") }
@@ -45,28 +46,36 @@ fun Cadastrar(
             .padding(horizontal = 40.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(modifier = Modifier.height(50.dp))
+        Spacer(modifier = Modifier.height(30.dp))
 
         Image(
             painter = painterResource(id = R.drawable.logoyadot),
             contentDescription = "Logo",
-            modifier = Modifier.height(120.dp).size(80.dp)
+            modifier = Modifier.size(80.dp) // Corrigido: size sobrepunha o height antigo
         )
 
-        Spacer(modifier = Modifier.height(15.dp))
-
         Text(
-            text = "Cadastra-se",
-            style = TextStyle(fontSize = 50.sp, color = Preto, fontWeight = FontWeight.Bold),
+            text = "Cadastrar-se",
+            style = TextStyle(fontSize = 40.sp, color = Preto, fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(top = 7.dp)
         )
 
-        Spacer(modifier = Modifier.height(50.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = nome,
             onValueChange = { nome = it },
             label = { Text("Digite seu Nome") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Novo campo para o Sobrenome exigido pelo seu ViewModel
+        OutlinedTextField(
+            value = sobrenome,
+            onValueChange = { sobrenome = it },
+            label = { Text("Digite seu Sobrenome") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -104,40 +113,40 @@ fun Cadastrar(
             Text(text = uiState.erro ?: "", color = Color.Red, fontSize = 13.sp)
         }
 
-        Column(
-            modifier = Modifier
-                .background(Branco)
-                .padding(horizontal = 40.dp, vertical = 25.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = {
-                    if (senha == confirmarSenha && nome.isNotBlank() && email.isNotBlank()) {
-                        viewModel.cadastrar(nome, email, senha) {
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = {
+                if (senha == confirmarSenha) {
+                    viewModel.cadastrar(
+                        nome = nome,
+                        sobrenome = sobrenome,
+                        email = email,
+                        senha = senha,
+                        onSucesso = {
                             navController.navigate(Rotas.HOME)
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(1f).height(60.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Preto),
-                enabled = !uiState.carregando
-            ) {
-                if (uiState.carregando) {
-                    CircularProgressIndicator(color = Branco, modifier = Modifier.size(24.dp))
+                        },
+                        onErro = { /* Erro tratado no uiState */ }
+                    )
                 } else {
-                    Text(text = "Cadastrar", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    // Idealmente injetar um erro visual de senhas divergentes aqui
                 }
+            },
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Preto),
+            enabled = !uiState.carregando
+        ) {
+            if (uiState.carregando) {
+                CircularProgressIndicator(color = Branco, modifier = Modifier.size(24.dp))
+            } else {
+                Text(text = "Cadastrar", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        Spacer(modifier = Modifier.weight(5f))
+        Spacer(modifier = Modifier.weight(1f))
 
-        Column(
-            modifier = Modifier.fillMaxWidth().background(Branco),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(text = "yadoT©", color = Preto, fontSize = 15.sp)
         }
     }

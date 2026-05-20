@@ -27,7 +27,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
     NavHost(
         navController    = navController,
-        startDestination = Rotas.HOME   ) {
+        startDestination = Rotas.   HOME  ) {
 
         // Tela de Login
         composable(Rotas.ENTRAR) {
