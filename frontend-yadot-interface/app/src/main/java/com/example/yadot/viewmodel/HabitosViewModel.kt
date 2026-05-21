@@ -178,8 +178,11 @@ class HabitosViewModel(
                 carregarHabitosDeHoje()
                 onSucesso()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(carregando = false)
-                onErro("Erro no login: ${e.message}")
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    erro = "Erro: ${e.message}"   // ← adicionado
+                )
+                onErro("Erro no login: ${e.message}") // mantido se quiser log
             }
         }
     }
@@ -209,7 +212,10 @@ class HabitosViewModel(
                 )
                 onSucesso()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(carregando = false)
+                _uiState.value = _uiState.value.copy(
+                    carregando = false,
+                    erro = "Erro: ${e.message}"   // ← adicionado
+                )
                 onErro("Erro no cadastro: ${e.message}")
             }
         }
@@ -429,5 +435,9 @@ class HabitosViewModel(
                 )
             }
         }
+    }
+    fun restaurarSessao(usuario: UsuarioResponse) {
+        _uiState.value = _uiState.value.copy(usuarioLogado = usuario)
+        carregarHabitosDeHoje()
     }
 }

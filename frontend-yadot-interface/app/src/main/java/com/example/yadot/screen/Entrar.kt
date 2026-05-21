@@ -23,6 +23,12 @@ import com.example.yadot.Rotas
 import com.example.yadot.ui.theme.Branco
 import com.example.yadot.ui.theme.Preto
 import com.example.yadot.viewmodel.HabitosViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
+import com.example.yadot.viewmodel.SessionManager
+import androidx.compose.ui.platform.LocalContext
 
 // ── Entrar.kt — conectado com a API via ViewModel ────────────
 @RequiresApi(Build.VERSION_CODES.O)
@@ -30,10 +36,12 @@ import com.example.yadot.viewmodel.HabitosViewModel
 fun Entrar(
     modifier: Modifier = Modifier,
     navController: NavHostController,
-    viewModel: HabitosViewModel          // ← recebe o ViewModel
+    viewModel: HabitosViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var senha by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -76,14 +84,22 @@ fun Entrar(
             onValueChange = { senha = it },
             label = { Text("Digite sua Senha") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation()
+            visualTransformation = if (passwordVisible) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                val image = if (passwordVisible) Icons.Filled.Visibility
+                else Icons.Filled.VisibilityOff
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Esconder senha" else "Mostrar senha")
+                }
+            }
         )
 
-        // Mostra erro de login se houver
+        // Erro de login
         if (uiState.erro != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = uiState.erro ?: "",
+                text = uiState.erro ?: "Email ou senha incorretos. Tente novamente",
                 color = Color.Red,
                 fontSize = 13.sp
             )
@@ -99,11 +115,15 @@ fun Entrar(
                         email = email,
                         senha = senha,
                         onSucesso = {
-                            navController.navigate(Rotas.TELA_PRINCIPAL)
+                            // Salva a sessão assim que o login for bem-sucedido
+                            viewModel.uiState.value.usuarioLogado?.let { user ->
+                                SessionManager.salvarSessao(context, user.id, user.nome, user.email)
+                            }
+                            navController.navigate(Rotas.TELA_PRINCIPAL) {
+                                popUpTo(Rotas.HOME) { inclusive = true } // remove tela de boas-vindas da pilha
+                            }
                         },
-                        onErro = { mensagem ->
-                            // O ViewModel já atualiza o uiState.erro internamente
-                        }
+                        onErro = { /* o erro já aparece no uiState.erro */ }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(1f).height(60.dp),
