@@ -46,9 +46,10 @@ import com.example.yadot.viewmodel.HabitosViewModel
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController, viewModel: HabitosViewModel) {
-    // Agora usa o flow que combina hábitos + check-ins
     val habitosDoDia by viewModel.habitosComStatus.collectAsState()
-    val progresso = viewModel.calcularProgressoDoDia()
+    val progresso by viewModel.progressoDiaSelecionado.collectAsState()
+    val diaAnteriorState by viewModel.diaAnteriorState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -57,203 +58,165 @@ fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController,
             .padding(horizontal = 15.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        // Título
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Week 1",
-                style = TextStyle(
-                    fontSize = 50.sp,
-                    color = Preto,
-                    fontWeight = FontWeight.Bold
+        if (viewModel.ehDiaEditavel()) {
+            // ========== Layout do dia atual (editável) ==========
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Week 1",
+                    style = TextStyle(fontSize = 50.sp, color = Preto, fontWeight = FontWeight.Bold)
                 )
-            )
-            if (habitosDoDia.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Preto)
-                        .clickable { viewModel.alternarModoEdicao() }
-                        .padding(10.dp)
-                ) {
-                    Icon(
-                        imageVector = if (viewModel.modoEdicao) Icons.Filled.Check else Icons.Filled.Edit,
-                        contentDescription = "Editar",
-                        tint = Branco,
-                        modifier = Modifier.size(22.dp)
-                    )
+                if (habitosDoDia.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Preto)
+                            .clickable { viewModel.alternarModoEdicao() }
+                            .padding(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (viewModel.modoEdicao) Icons.Filled.Check else Icons.Filled.Edit,
+                            contentDescription = "Editar",
+                            tint = Branco,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        // Barra de dias
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
             BarraDeDias(
                 diaAtual = viewModel.diaSelecionado,
                 aoClicarNoDia = { viewModel.selecionarDia(it) }
             )
-        }
 
-        Spacer(modifier = Modifier.weight(3f))
+            Spacer(modifier = Modifier.weight(3f))
 
-        // Conteúdo central: lista ou estado vazio
-        if (habitosDoDia.isEmpty()) {
-            Column(
-                modifier = Modifier.padding(top = 40.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Nenhum hábito encontrado",
-                    style = TextStyle(
-                        fontSize = 25.sp,
-                        color = Preto,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                Text(
-                    "Cadastre agora!",
-                    style = TextStyle(
-                        fontSize = 25.sp,
-                        color = Preto,
-                        fontWeight = FontWeight.Normal
-                    )
-                )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(topStart = 50.dp, bottomEnd = 50.dp))
-                        .clickable { viewModel.abrirModal() }
-                        .background(Preto)
-                        .padding(horizontal = 60.dp, vertical = 20.dp),
-                    contentAlignment = Alignment.Center
+            if (habitosDoDia.isEmpty()) {
+                Column(
+                    modifier = Modifier.padding(top = 40.dp),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "+",
-                        style = TextStyle(
-                            fontSize = 80.sp,
-                            color = Branco,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(18f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(habitosDoDia, key = { it.id }) { habito ->
-                    val vetorIcone = viewModel.iconesDisponiveis
-                        .firstOrNull { it.first == habito.icone }?.second
-
-                    Row(
+                    Text("Nenhum hábito encontrado", style = TextStyle(fontSize = 25.sp, color = Preto, fontWeight = FontWeight.Bold))
+                    Text("Cadastre agora!", style = TextStyle(fontSize = 25.sp, color = Preto, fontWeight = FontWeight.Normal))
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Branco)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(RoundedCornerShape(topStart = 50.dp, bottomEnd = 50.dp))
+                            .clickable { viewModel.abrirModal() }
+                            .background(Preto)
+                            .padding(horizontal = 60.dp, vertical = 20.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Botão remover — só aparece no modo edição
-                        if (viewModel.modoEdicao) {
-                            Icon(
-                                imageVector = Icons.Filled.RemoveCircle,
-                                contentDescription = "Remover",
-                                tint = VermelhoErro,
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clickable { viewModel.removerHabito(habito.id) }
+                        Text("+", style = TextStyle(fontSize = 80.sp, color = Branco, fontWeight = FontWeight.Bold))
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(18f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(habitosDoDia, key = { it.id }) { habito ->
+                        val vetorIcone = viewModel.iconesDisponiveis
+                            .firstOrNull { it.first == habito.icone }?.second
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Branco)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (viewModel.modoEdicao) {
+                                Icon(
+                                    imageVector = Icons.Filled.RemoveCircle,
+                                    contentDescription = "Remover",
+                                    tint = VermelhoErro,
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .clickable { viewModel.removerHabito(habito.id) }
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+
+                            if (vetorIcone != null) {
+                                Icon(
+                                    imageVector = vetorIcone,
+                                    contentDescription = habito.nome,
+                                    tint = Preto,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Text(
+                                text = habito.nome,
+                                style = TextStyle(fontSize = 18.sp, color = Preto, fontWeight = FontWeight.Medium),
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                        }
 
-                        if (vetorIcone != null) {
-                            Icon(
-                                imageVector = vetorIcone,
-                                contentDescription = habito.nome,
-                                tint = Preto,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Text(
-                            text = habito.nome,
-                            style = TextStyle(
-                                fontSize = 18.sp,
-                                color = Preto,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Círculo só aparece quando não está no modo edição
-                        if (!viewModel.modoEdicao) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(CircleShape)
-                                    .background(if (habito.concluido) VerdeConcluido else Transparente)
-                                    .border(
-                                        width = 2.dp,
-                                        color = if (habito.concluido) VerdeConcluido else CinzaInativo,
-                                        shape = CircleShape
-                                    )
-                                    .clickable { viewModel.alternarStatusDoHabito(habito.id) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (habito.concluido) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = "Concluído",
-                                        tint = Branco,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                            if (!viewModel.modoEdicao) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .clip(CircleShape)
+                                        .background(if (habito.concluido) VerdeConcluido else Transparente)
+                                        .border(
+                                            width = 2.dp,
+                                            color = if (habito.concluido) VerdeConcluido else CinzaInativo,
+                                            shape = CircleShape
+                                        )
+                                        .clickable(enabled = viewModel.ehDiaEditavel()) { viewModel.alternarStatusDoHabito(habito.id) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (habito.concluido) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Concluído",
+                                            tint = Branco,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.weight(5f))
+            Spacer(modifier = Modifier.weight(5f))
 
-        if (viewModel.modoEdicao) {
-            Button(
-                onClick = { viewModel.abrirModal() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Preto)
-            ) {
-                Text(
-                    text = "Cadastrar Hábito",
-                    color = Branco,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (viewModel.modoEdicao) {
+                Button(
+                    onClick = { viewModel.abrirModal() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Preto)
+                ) {
+                    Text("Cadastrar Hábito", color = Branco, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
 
-        GraficoProgresso(porcentagem = progresso)
+            GraficoProgresso(porcentagem = progresso)
+        } else {
+            // ========== Layout do dia anterior (somente leitura) ==========
+            TelaDiaAnterior(
+                uiState = diaAnteriorState,
+                aoClicarNoDia = { dia -> viewModel.selecionarDia(dia) }
+            )
+        }
 
         Spacer(modifier = Modifier.weight(5f))
 
@@ -268,9 +231,6 @@ fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController,
         }
     }
 
-    // Modal
-    val uiState by viewModel.uiState.collectAsState()
-
     if (viewModel.mostrarModal) {
         ModalAdicionarHabito(
             viewModel = viewModel,
@@ -284,10 +244,10 @@ fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController,
     }
 }
 
+// ── Componentes auxiliares (mantidos, mas unificados) ──────────
 @Composable
 fun BarraDeDias(diaAtual: String, aoClicarNoDia: (String) -> Unit) {
     val diasDaSemana = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
-
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -296,7 +256,6 @@ fun BarraDeDias(diaAtual: String, aoClicarNoDia: (String) -> Unit) {
         items(diasDaSemana) { dia ->
             val corFundo = if (dia == diaAtual) Preto else CinzaInativo
             val corTexto = if (dia == diaAtual) Branco else Preto
-
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
@@ -305,10 +264,7 @@ fun BarraDeDias(diaAtual: String, aoClicarNoDia: (String) -> Unit) {
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = dia,
-                    style = TextStyle(fontSize = 20.sp, color = corTexto, fontWeight = FontWeight.Bold)
-                )
+                Text(dia, style = TextStyle(fontSize = 20.sp, color = corTexto, fontWeight = FontWeight.Bold))
             }
         }
     }
@@ -321,51 +277,18 @@ fun GraficoProgresso(porcentagem: Int) {
         animationSpec = tween(durationMillis = 1000),
         label = "animacao_progresso"
     )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Progresso Atual",
-            style = TextStyle(
-                fontSize = 28.sp,
-                color = Preto,
-                fontWeight = FontWeight.Bold
-            )
-        )
-
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Progresso Atual", style = TextStyle(fontSize = 28.sp, color = Preto, fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(20.dp))
-
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(140.dp)
-        ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(140.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val espessuraDaLinha = 24.dp.toPx()
-
-                drawArc(
-                    color = FundoCinzaClaro,
-                    startAngle = 0f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    style = Stroke(width = espessuraDaLinha)
-                )
-
+                drawArc(FundoCinzaClaro, 0f, 360f, false, style = Stroke(espessuraDaLinha))
                 if (progressoAnimado > 0f) {
-                    drawArc(
-                        color = VerdeConcluido,
-                        startAngle = -90f,
-                        sweepAngle = (progressoAnimado / 100f) * 360f,
-                        useCenter = false,
-                        style = Stroke(width = espessuraDaLinha, cap = StrokeCap.Round)
-                    )
+                    drawArc(VerdeConcluido, -90f, (progressoAnimado / 100f) * 360f, false, style = Stroke(espessuraDaLinha, cap = StrokeCap.Round))
                 }
             }
-
-            Text(
-                text = "$porcentagem%",
-                style = TextStyle(fontSize = 20.sp, color = Preto, fontWeight = FontWeight.Bold)
-            )
+            Text("$porcentagem%", style = TextStyle(fontSize = 20.sp, color = Preto, fontWeight = FontWeight.Bold))
         }
     }
 }
