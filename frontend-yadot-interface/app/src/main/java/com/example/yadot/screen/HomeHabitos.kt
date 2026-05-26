@@ -58,7 +58,7 @@ fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController,
             .padding(horizontal = 15.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (viewModel.ehDiaEditavel()) {
+        if (viewModel.podeEditar()) {
             // ========== Layout do dia atual (editável) ==========
             Row(
                 modifier = Modifier
@@ -175,7 +175,7 @@ fun HomeHabitos(modifier: Modifier = Modifier, navController: NavHostController,
                                             color = if (habito.concluido) VerdeConcluido else CinzaInativo,
                                             shape = CircleShape
                                         )
-                                        .clickable(enabled = viewModel.ehDiaEditavel()) { viewModel.alternarStatusDoHabito(habito.id) },
+                                        .clickable(enabled = viewModel.podeCheckin()) { viewModel.alternarStatusDoHabito(habito.id) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (habito.concluido) {

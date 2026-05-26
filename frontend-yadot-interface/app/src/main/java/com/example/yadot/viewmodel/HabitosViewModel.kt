@@ -190,17 +190,24 @@ class HabitosViewModel(
     }
 
     fun abrirModal() {
-        if (!ehDiaEditavel()) return
+        if (!podeEditar()) return
         _uiState.value = _uiState.value.copy(erro = null)
         mostrarModal = true
     }
     fun fecharModal() { mostrarModal = false }
 
     fun alternarModoEdicao() {
-        if (ehDiaEditavel()) modoEdicao = !modoEdicao
+        if (podeEditar()) modoEdicao = !modoEdicao
     }
 
-    fun ehDiaEditavel() = diaSelecionado == diasDaSemana[indexDeHoje]
+    fun podeEditar(): Boolean {
+        val idxSelecionado = diasDaSemana.indexOf(diaSelecionado)
+        return idxSelecionado >= indexDeHoje
+    }
+
+    fun podeCheckin(): Boolean {
+        return diaSelecionado == diasDaSemana[indexDeHoje]
+    }
 
     // Autenticação
     fun login(email: String, senha: String, onSucesso: () -> Unit, onErro: (String) -> Unit) {
@@ -258,7 +265,7 @@ class HabitosViewModel(
     }
 
     fun removerHabito(habitoId: Long) {
-        if (!ehDiaEditavel()) return
+        if (!podeEditar()) return
         viewModelScope.launch {
             try {
                 RetrofitClient.api.deletarHabito(habitoId)
@@ -270,7 +277,7 @@ class HabitosViewModel(
     }
 
     fun realizarCheckin(habitoId: Long) {
-        if (!ehDiaEditavel()) return
+        if (!podeCheckin()) return
         viewModelScope.launch {
             try {
                 RetrofitClient.api.realizarCheckin(CheckinRequest(habitoId, LocalDate.now().toString()))

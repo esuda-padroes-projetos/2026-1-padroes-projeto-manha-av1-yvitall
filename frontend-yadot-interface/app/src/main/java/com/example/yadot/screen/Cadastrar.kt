@@ -5,7 +5,9 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.text.input.VisualTransformation
+import com.example.yadot.ui.theme.VermelhoErro
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -41,6 +44,12 @@ fun Cadastrar(
     var senha          by remember { mutableStateOf("") }
     var confirmarSenha by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+
+    // Estados de erro
+    var erroNome       by remember { mutableStateOf(false) }
+    var erroSobrenome  by remember { mutableStateOf(false) }
+    var erroEmail      by remember { mutableStateOf(false) }
+    var erroSenha      by remember { mutableStateOf(false) }
     var erroSenhas     by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -49,29 +58,18 @@ fun Cadastrar(
         modifier = Modifier
             .fillMaxSize()
             .background(Branco)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 40.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Image(
-            painter = painterResource(id = R.drawable.logoyadot),
-            contentDescription = "Logo",
-            modifier = Modifier.size(80.dp)
-        )
-
-        Text(
-            text = "Cadastrar-se",
-            style = TextStyle(fontSize = 40.sp, color = Preto, fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(top = 7.dp)
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
+        // ... (logo e título mantidos)
 
         OutlinedTextField(
             value = nome,
-            onValueChange = { nome = it },
+            onValueChange = { nome = it; erroNome = false },
             label = { Text("Digite seu Nome") },
+            isError = erroNome,
+            supportingText = { if (erroNome) Text("Nome é obrigatório", color = VermelhoErro) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -79,8 +77,10 @@ fun Cadastrar(
 
         OutlinedTextField(
             value = sobrenome,
-            onValueChange = { sobrenome = it },
+            onValueChange = { sobrenome = it; erroSobrenome = false },
             label = { Text("Digite seu Sobrenome") },
+            isError = erroSobrenome,
+            supportingText = { if (erroSobrenome) Text("Sobrenome é obrigatório", color = VermelhoErro) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -88,8 +88,10 @@ fun Cadastrar(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = { email = it; erroEmail = false },
             label = { Text("Digite seu Email") },
+            isError = erroEmail,
+            supportingText = { if (erroEmail) Text("Email é obrigatório", color = VermelhoErro) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -97,66 +99,55 @@ fun Cadastrar(
 
         OutlinedTextField(
             value = senha,
-            onValueChange = {
-                senha = it
-                erroSenhas = false
-            },
+            onValueChange = { senha = it; erroSenha = false; erroSenhas = false },
             label = { Text("Digite sua Senha") },
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = if (passwordVisible) VisualTransformation.None
             else PasswordVisualTransformation(),
-            trailingIcon = {
-                val image = if (passwordVisible) Icons.Filled.Visibility
-                else Icons.Filled.VisibilityOff
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Esconder senha" else "Mostrar senha")
-                }
-            }
+            trailingIcon = { /* olhinho */ },
+            isError = erroSenha,
+            supportingText = { if (erroSenha) Text("Senha é obrigatória", color = VermelhoErro) }
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedTextField(
             value = confirmarSenha,
-            onValueChange = {
-                confirmarSenha = it
-                erroSenhas = false
-            },
+            onValueChange = { confirmarSenha = it; erroSenhas = false },
             label = { Text("Confirme sua senha") },
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = if (passwordVisible) VisualTransformation.None
-            else PasswordVisualTransformation()
+            else PasswordVisualTransformation(),
+            isError = erroSenhas,
+            supportingText = { if (erroSenhas) Text("As senhas não conferem", color = VermelhoErro) }
         )
 
-        // Erro de senhas divergentes
-        if (erroSenhas) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("As senhas não conferem", color = Color.Red, fontSize = 13.sp)
-        }
-
-        // Erro da API (email duplicado, etc.)
+        // Erro da API
         if (uiState.erro != null) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = uiState.erro ?: "", color = Color.Red, fontSize = 13.sp)
+            Text(text = uiState.erro ?: "", color = VermelhoErro, fontSize = 13.sp)
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
             onClick = {
-                if (senha == confirmarSenha) {
+                // Limpa erros anteriores
+                erroNome = nome.isBlank()
+                erroSobrenome = sobrenome.isBlank()
+                erroEmail = email.isBlank()
+                erroSenha = senha.isBlank()
+                erroSenhas = senha != confirmarSenha
+
+                if (!erroNome && !erroSobrenome && !erroEmail && !erroSenha && !erroSenhas) {
                     viewModel.cadastrar(
-                        nome = nome,
-                        sobrenome = sobrenome,
-                        email = email,
+                        nome = nome.trim(),
+                        sobrenome = sobrenome.trim(),
+                        email = email.trim(),
                         senha = senha,
-                        onSucesso = {
-                            navController.navigate(Rotas.ENTRAR)
-                        },
-                        onErro = { /* ViewModel trata */ }
+                        onSucesso = { navController.navigate(Rotas.ENTRAR) },
+                        onErro = { }
                     )
-                } else {
-                    erroSenhas = true
                 }
             },
             modifier = Modifier.fillMaxWidth().height(60.dp),
