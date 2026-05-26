@@ -191,7 +191,7 @@ class HabitosViewModel(
 
     fun abrirModal() {
         if (!podeEditar()) return
-        _uiState.value = _uiState.value.copy(erro = null)
+        _uiState.value = _uiState.value.copy(erro = null, carregando = false)  // reset
         mostrarModal = true
     }
     fun fecharModal() { mostrarModal = false }
